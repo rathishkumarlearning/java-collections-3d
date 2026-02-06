@@ -1045,16 +1045,18 @@ collections.forEach(col => {
 // ╚══════════════════════════════════════════════════════════════╝
 
 const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+const mouse = new THREE.Vector2(-9999, -9999);
 const tooltip = document.getElementById('tooltip');
 const infoPanel = document.getElementById('infoPanel');
 const infoBody = document.getElementById('infoBody');
 let hoveredNode = null;
 let selectedNode = null;
+let mouseInited = false;
 
 canvas.addEventListener('mousemove', e => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  mouseInited = true;
   tooltip.style.left = (e.clientX + 14) + 'px';
   tooltip.style.top = (e.clientY - 14) + 'px';
 });
@@ -1062,11 +1064,12 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('click', e => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  mouseInited = true;
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(nodeMeshes);
   if (hits.length > 0) {
     const col = hits[0].object.userData;
-    openInfoPanel(col, hits[0].object);
+    if (col && col.id) openInfoPanel(col, hits[0].object);
   }
 });
 
@@ -1083,10 +1086,12 @@ canvas.addEventListener('touchend', e => {
   const t = e.changedTouches[0];
   mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+  mouseInited = true;
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(nodeMeshes);
   if (hits.length > 0) {
-    openInfoPanel(hits[0].object.userData, hits[0].object);
+    const col = hits[0].object.userData;
+    if (col && col.id) openInfoPanel(col, hits[0].object);
   }
 }, { passive: true });
 
@@ -1274,35 +1279,39 @@ function animate() {
     pts.needsUpdate = true;
   });
 
-  // Hover detection
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(nodeMeshes.filter(m => m.visible));
+  // Hover detection (only after mouse has moved)
+  if (mouseInited) {
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(nodeMeshes.filter(m => m.visible));
 
-  if (hits.length > 0) {
-    const mesh = hits[0].object;
-    if (hoveredNode !== mesh) {
-      // Unhover previous
+    if (hits.length > 0) {
+      const mesh = hits[0].object;
+      if (hoveredNode !== mesh) {
+        // Unhover previous
+        if (hoveredNode) {
+          hoveredNode.material.emissiveIntensity = 0.3;
+          hoveredNode.scale.set(1, 1, 1);
+        }
+        hoveredNode = mesh;
+        mesh.material.emissiveIntensity = 0.7;
+        mesh.scale.set(1.15, 1.15, 1.15);
+        canvas.style.cursor = 'pointer';
+
+        const col = mesh.userData;
+        if (col && col.id) {
+          tooltip.innerHTML = `${col.id}<span class="tt-type">${col.type} · ${col.category}</span>`;
+          tooltip.style.color = '#' + new THREE.Color(COLORS[col.category]).getHexString();
+          tooltip.classList.add('visible');
+        }
+      }
+    } else {
       if (hoveredNode) {
         hoveredNode.material.emissiveIntensity = 0.3;
         hoveredNode.scale.set(1, 1, 1);
+        hoveredNode = null;
+        canvas.style.cursor = 'default';
+        tooltip.classList.remove('visible');
       }
-      hoveredNode = mesh;
-      mesh.material.emissiveIntensity = 0.7;
-      mesh.scale.set(1.15, 1.15, 1.15);
-      canvas.style.cursor = 'pointer';
-
-      const col = mesh.userData;
-      tooltip.innerHTML = `${col.id}<span class="tt-type">${col.type} · ${col.category}</span>`;
-      tooltip.style.color = '#' + new THREE.Color(COLORS[col.category]).getHexString();
-      tooltip.classList.add('visible');
-    }
-  } else {
-    if (hoveredNode) {
-      hoveredNode.material.emissiveIntensity = 0.3;
-      hoveredNode.scale.set(1, 1, 1);
-      hoveredNode = null;
-      canvas.style.cursor = 'default';
-      tooltip.classList.remove('visible');
     }
   }
 
