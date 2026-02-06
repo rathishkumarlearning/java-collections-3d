@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Java Collections Framework — Interactive 3D Explorer</title>
+<meta name="description" content="Explore the Java Collections Framework in an interactive 3D visualization. Learn ArrayList, HashMap, TreeSet, and more with Big-O complexity and code examples." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>" />
+<style>
+/* ─── Reset & Base ─── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #050508;
+  --purple: #8b5cf6;
+  --cyan: #06b6d4;
+  --pink: #ec4899;
+  --green: #10b981;
+  --orange: #f59e0b;
+  --white: #e2e8f0;
+  --glass: rgba(15, 15, 25, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: var(--white);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Canvas ─── */
+#canvas3d {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ─── Header ─── */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(to bottom, rgba(5,5,8,0.95), transparent);
+  pointer-events: none;
+}
+.header > * { pointer-events: auto; }
+.header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header h1 span.java-icon { font-size: 22px; -webkit-text-fill-color: initial; }
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+.legend-btn, .reset-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s;
+}
+.legend-btn:hover, .reset-btn:hover {
+  border-color: rgba(255,255,255,0.2);
+  background: rgba(30,30,50,0.8);
+}
+
+/* ─── Legend Panel ─── */
+.legend-panel {
+  position: fixed;
+  top: 64px; right: 24px;
+  z-index: 100;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(20px);
+  display: none;
+  min-width: 200px;
+}
+.legend-panel.visible { display: block; animation: slideIn 0.3s ease; }
+.legend-panel h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.legend-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── Tooltip (hover) ─── */
+.hover-tooltip {
+  position: fixed;
+  z-index: 200;
+  padding: 8px 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  backdrop-filter: blur(16px);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.hover-tooltip.visible { opacity: 1; }
+.hover-tooltip .tt-type {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.6;
+  display: block;
+  margin-top: 2px;
+}
+
+/* ─── Info Panel (click) ─── */
+.info-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(460px, 92vw);
+  z-index: 300;
+  background: rgba(8, 8, 16, 0.88);
+  border-left: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px);
+  transform: translateX(100%);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.info-panel.open { transform: translateX(0); }
+.info-panel::-webkit-scrollbar { width: 6px; }
+.info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+.info-close {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 20px 8px;
+  background: linear-gradient(to bottom, rgba(8,8,16,0.95), transparent);
+}
+.info-close button {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  color: var(--white);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.info-close button:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.info-body { padding: 0 24px 40px; }
+
+.info-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.info-icon-wrap {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: 16px;
+  border: 1px solid var(--glass-border);
+  position: relative;
+  overflow: hidden;
+}
+.info-icon-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  border-radius: inherit;
+}
+.info-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.info-category {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  opacity: 0.5;
+}
+.info-implements {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+.info-implements code {
+  background: rgba(255,255,255,0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.info-desc {
+  font-size: 14px;
+  line-height: 1.7;
+  opacity: 0.8;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+/* Section cards inside info panel */
+.info-section {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.info-section h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+/* Complexity table */
+.complexity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.complexity-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.complexity-item .op { opacity: 0.6; }
+.complexity-item .big-o {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* Methods list */
+.methods-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.method-tag {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+/* Code block */
+.code-block {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 14px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  color: #e2e8f0;
+}
+.code-block .kw { color: var(--purple); }
+.code-block .type { color: var(--cyan); }
+.code-block .str { color: var(--green); }
+.code-block .num { color: var(--orange); }
+.code-block .cmt { color: rgba(255,255,255,0.3); font-style: italic; }
+
+/* Tips */
+.tips-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tips-list li {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  gap: 8px;
+}
+.tips-list li::before {
+  content: '💡';
+  flex-shrink: 0;
+}
+
+/* ─── Overlay: instructions ─── */
+.instructions {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  padding: 10px 20px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  font-size: 12px;
+  opacity: 0.6;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+
+/* ─── Loading ─── */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  transition: opacity 0.5s;
+}
+.loader.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.loader-spinner {
+  width: 48px; height: 48px;
+  border: 3px solid rgba(139,92,246,0.2);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loader-text {
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+/* ─── Search ─── */
+.search-bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  width: min(360px, 60vw);
+}
+.search-bar svg { opacity: 0.4; flex-shrink: 0; }
+.search-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--white);
+  font-size: 13px;
+  font-family: inherit;
+}
+.search-bar input::placeholder { color: rgba(255,255,255,0.3); }
+
+/* ─── Animations ─── */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ─── Mobile ─── */
+@media (max-width: 640px) {
+  .header h1 { font-size: 14px; }
+  .info-panel { width: 100vw; }
+  .search-bar { width: 55vw; }
+  .instructions { font-size: 11px; padding: 8px 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loader" id="loader">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Loading 3D Collections…</div>
+</div>
+
+<!-- Canvas -->
+<canvas id="canvas3d"></canvas>
+
+<!-- Header -->
+<div class="header">
+  <h1><span class="java-icon">☕</span> Java Collections 3D</h1>
+  <div class="header-right">
+    <button class="legend-btn" id="legendToggle">🎨 Legend</button>
+    <button class="reset-btn" id="resetCamera">🔄 Reset View</button>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="search-bar">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input type="text" id="searchInput" placeholder="Search collections… (e.g. HashMap)" autocomplete="off" />
+</div>
+
+<!-- Legend -->
+<div class="legend-panel" id="legendPanel">
+  <h3>Categories</h3>
+  <div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div>Interface</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div>List</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Set</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Queue / Deque</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Map</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div>Legacy</div>
+  <div style="margin-top:12px; font-size:11px; opacity:0.4;">
+    🔷 Interface = Icosahedron<br>
+    🔶 Class = Rounded Box
+  </div>
+</div>
+
+<!-- Hover tooltip -->
+<div class="hover-tooltip" id="tooltip"></div>
+
+<!-- Info Panel -->
+<div class="info-panel" id="infoPanel">
+  <div class="info-close"><button id="infoClose">✕</button></div>
+  <div class="info-body" id="infoBody"></div>
+</div>
+
+<!-- Instructions -->
+<div class="instructions" id="instructions">
+  🖱️ Drag to orbit · Scroll to zoom · Click a node to explore · Search to find
+</div>
+
+<!-- Scripts -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  DATA — Every Java Collection with full details             ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const COLORS = {
+  iface:  0xe2e8f0,
+  list:   0x06b6d4,
+  set:    0x8b5cf6,
+  queue:  0x10b981,
+  map:    0xf59e0b,
+  legacy: 0xec4899,
+};
+
+const collections = [
+  // ─── Interfaces ───
+  {
+    id: 'Collection', type: 'interface', category: 'iface',
+    pos: [0, 6, 0],
+    description: 'The root interface of the Java Collections Framework. Extends Iterable. Defines the most general contract for a group of objects (elements).',
+    implements: 'extends Iterable<E>',
+    complexity: { add: 'varies', remove: 'varies', get: 'N/A', contains: 'varies' },
+    methods: ['add()', 'remove()', 'contains()', 'size()', 'isEmpty()', 'iterator()', 'toArray()', 'clear()', 'stream()'],
+    code: `Collection<String> c = new ArrayList<>();\nc.add("Java");\nc.add("Python");\nc.remove("Python");\nSystem.out.println(c.size()); // 1\n\n// Stream API (Java 8+)\nc.stream()\n .filter(s -> s.startsWith("J"))\n .forEach(System.out::println);`,
+    tips: [
+      'Use Collection as parameter type for maximum flexibility',
+      'Prefer Collection over List if order doesn\'t matter',
+      'stream() + lambda = modern Java power combo',
+      'Interview: Know the difference between Collection and Collections (utility class)'
+    ]
+  },
+  {
+    id: 'List', type: 'interface', category: 'iface',
+    pos: [-10, 2, 0],
+    parent: 'Collection',
+    description: 'Ordered collection (sequence). Allows duplicates. Elements accessible by integer index. Preserves insertion order.',
+    implements: 'extends Collection<E>',
+    complexity: { add: 'varies', remove: 'varies', get: 'varies', contains: 'varies' },
+    methods: ['get()', 'set()', 'add(index, e)', 'remove(index)', 'indexOf()', 'lastIndexOf()', 'subList()', 'listIterator()', 'sort()', 'of()'],
+    code: `List<String> list = List.of("A", "B", "C"); // immutable\n\nList<String> mutable = new ArrayList<>(list);\nmutable.add("D");\nmutable.set(0, "Z");\nString first = mutable.get(0); // "Z"\n\n// Sort\nmutable.sort(Comparator.naturalOrder());`,
+    tips: [
+      'List.of() creates immutable lists (Java 9+)',
+      'Use List interface as declared type, not ArrayList',
+      'Interview: List vs Set — order + duplicates vs uniqueness',
+      'ListIterator supports bidirectional traversal'
+    ]
+  },
+  {
+    id: 'Set', type: 'interface', category: 'iface',
+    pos: [0, 2, -8],
+    parent: 'Collection',
+    description: 'A collection that contains NO duplicate elements. Models the mathematical set abstraction. At most one null element (implementation-dependent).',
+    implements: 'extends Collection<E>',
+    complexity: { add: 'varies', remove: 'varies', get: 'N/A', contains: 'varies' },
+    methods: ['add()', 'remove()', 'contains()', 'size()', 'isEmpty()', 'iterator()', 'of()', 'copyOf()'],
+    code: `Set<String> set = new HashSet<>();\nset.add("Java");\nset.add("Java"); // duplicate ignored\nset.add("Python");\nSystem.out.println(set.size()); // 2\n\n// Immutable set (Java 9+)\nSet<Integer> nums = Set.of(1, 2, 3);`,
+    tips: [
+      'equals() and hashCode() MUST be consistent for Set to work',
+      'Set has no get(index) — use contains() or iterate',
+      'Interview: Why override both equals() AND hashCode()?',
+      'Set.of() throws on duplicates — watch out!'
+    ]
+  },
+  {
+    id: 'Queue', type: 'interface', category: 'iface',
+    pos: [10, 2, 0],
+    parent: 'Collection',
+    description: 'FIFO (First-In-First-Out) ordering. Elements are inserted at the tail and removed from the head. Preferred over Stack for LIFO too (use Deque).',
+    implements: 'extends Collection<E>',
+    complexity: { add: 'varies', remove: 'varies', get: 'N/A (peek)', contains: 'varies' },
+    methods: ['offer()', 'poll()', 'peek()', 'add()', 'remove()', 'element()'],
+    code: `Queue<String> q = new LinkedList<>();\nq.offer("First");\nq.offer("Second");\nq.offer("Third");\n\nString head = q.peek();  // "First" (no remove)\nString out = q.poll();   // "First" (removes)\nSystem.out.println(q);   // [Second, Third]`,
+    tips: [
+      'offer/poll/peek return null on failure — prefer over add/remove/element',
+      'add/remove/element throw exceptions on failure',
+      'Interview: offer vs add, poll vs remove, peek vs element',
+      'Don\'t use Queue for random access — it\'s head-only'
+    ]
+  },
+  {
+    id: 'Deque', type: 'interface', category: 'iface',
+    pos: [14, -2, 4],
+    parent: 'Queue',
+    description: 'Double-ended queue. Supports insertion and removal at BOTH ends. Can act as both FIFO queue and LIFO stack. Preferred over legacy Stack class.',
+    implements: 'extends Queue<E>',
+    complexity: { add: 'varies', remove: 'varies', get: 'N/A', contains: 'varies' },
+    methods: ['offerFirst()', 'offerLast()', 'pollFirst()', 'pollLast()', 'peekFirst()', 'peekLast()', 'push()', 'pop()'],
+    code: `Deque<String> deque = new ArrayDeque<>();\n\n// As Queue (FIFO)\ndeque.offerLast("A");\ndeque.offerLast("B");\ndeque.pollFirst(); // "A"\n\n// As Stack (LIFO)\ndeque.push("X");\ndeque.push("Y");\ndeque.pop(); // "Y"`,
+    tips: [
+      'Use ArrayDeque instead of Stack class (much faster)',
+      'push/pop = stack operations (head end)',
+      'Interview: "How to implement a stack in Java?" → ArrayDeque',
+      'Deque = "Deck", not "De-queue"'
+    ]
+  },
+  {
+    id: 'Map', type: 'interface', category: 'iface',
+    pos: [0, 2, 10],
+    description: 'Key-value pair collection. NOT part of Collection interface hierarchy. Each key maps to at most one value. No duplicate keys.',
+    implements: 'does NOT extend Collection',
+    complexity: { put: 'varies', remove: 'varies', get: 'varies', containsKey: 'varies' },
+    methods: ['put()', 'get()', 'remove()', 'containsKey()', 'containsValue()', 'keySet()', 'values()', 'entrySet()', 'getOrDefault()', 'putIfAbsent()', 'merge()', 'of()'],
+    code: `Map<String, Integer> map = new HashMap<>();\nmap.put("Java", 1995);\nmap.put("Python", 1991);\n\nint year = map.get("Java");           // 1995\nint def = map.getOrDefault("Go", 0);  // 0\n\n// Iterate\nfor (var entry : map.entrySet()) {\n  System.out.println(entry.getKey() + ": " + entry.getValue());\n}`,
+    tips: [
+      'Map is NOT a Collection — different hierarchy',
+      'putIfAbsent() and merge() are Java 8 power methods',
+      'Interview: HashMap vs TreeMap vs LinkedHashMap',
+      'Map.of() for small immutable maps (Java 9+)'
+    ]
+  },
+
+  // ─── List Implementations ───
+  {
+    id: 'ArrayList', type: 'class', category: 'list',
+    pos: [-16, -3, -3],
+    parent: 'List',
+    description: 'Resizable-array implementation of List. Best for random access and iteration. Internally uses Object[] that grows by 50% when full. Most commonly used List.',
+    implements: 'implements List, RandomAccess, Cloneable, Serializable',
+    complexity: { 'get(i)': 'O(1)', 'add (end)': 'O(1)*', 'add (mid)': 'O(n)', 'remove': 'O(n)', 'contains': 'O(n)', 'set': 'O(1)' },
+    methods: ['get()', 'set()', 'add()', 'remove()', 'ensureCapacity()', 'trimToSize()', 'indexOf()', 'subList()'],
+    code: `ArrayList<String> list = new ArrayList<>(100); // initial capacity\nlist.add("Java");\nlist.add("Spring");\nlist.add(1, "Boot");  // insert at index 1\n\nString s = list.get(0);  // O(1) — fast!\nlist.remove(0);          // O(n) — shifts elements\n\n// Pre-size for performance\nlist.ensureCapacity(1000);`,
+    tips: [
+      'Default capacity = 10, grows by 50% (newCap = oldCap + oldCap >> 1)',
+      'Use ensureCapacity() if you know the size — avoids resizing',
+      '*add(end) is amortized O(1) due to occasional array copy',
+      'Interview: ArrayList vs LinkedList — AL wins 95% of the time',
+      'RandomAccess marker interface → for loop faster than iterator'
+    ]
+  },
+  {
+    id: 'LinkedList', type: 'class', category: 'list',
+    pos: [-12, -3, -7],
+    parent: 'List',
+    parentAlso: 'Deque',
+    description: 'Doubly-linked list implementation. Each element is a Node with prev/next pointers. Implements BOTH List and Deque. Good for frequent insertions/deletions at ends.',
+    implements: 'implements List, Deque, Cloneable, Serializable',
+    complexity: { 'get(i)': 'O(n)', 'add (end)': 'O(1)', 'add (mid)': 'O(n)*', 'remove (end)': 'O(1)', 'contains': 'O(n)', 'set(i)': 'O(n)' },
+    methods: ['addFirst()', 'addLast()', 'getFirst()', 'getLast()', 'removeFirst()', 'removeLast()', 'push()', 'pop()', 'offer()', 'poll()'],
+    code: `LinkedList<String> ll = new LinkedList<>();\nll.addFirst("A");\nll.addLast("B");\nll.add("C");         // adds to end\n\nll.getFirst();       // O(1)\nll.get(1);           // O(n) — traverses!\n\n// As Deque/Stack\nll.push("X");        // adds to head\nll.pop();            // removes from head`,
+    tips: [
+      'Almost always slower than ArrayList due to cache misses',
+      'Each node = 24 bytes overhead (prev + next + item pointers)',
+      '*add(mid) is O(1) IF you have the iterator position, O(n) to find it',
+      'Interview: "When to use LinkedList?" → Almost never. ArrayDeque for queue/stack.',
+      'Implements both List and Deque — know this for interviews!'
+    ]
+  },
+  {
+    id: 'Vector', type: 'class', category: 'legacy',
+    pos: [-18, -3, 2],
+    parent: 'List',
+    description: 'Legacy synchronized resizable-array. Thread-safe but slow due to synchronization on every operation. Replaced by ArrayList + Collections.synchronizedList() or CopyOnWriteArrayList.',
+    implements: 'implements List, RandomAccess, Cloneable, Serializable',
+    complexity: { 'get(i)': 'O(1)', 'add (end)': 'O(1)*', 'add (mid)': 'O(n)', 'remove': 'O(n)', 'contains': 'O(n)', 'set': 'O(1)' },
+    methods: ['elementAt()', 'firstElement()', 'lastElement()', 'addElement()', 'removeElement()', 'capacity()'],
+    code: `// ❌ Don't use Vector in new code!\nVector<String> v = new Vector<>();\nv.addElement("old style");\n\n// ✅ Modern alternatives:\nList<String> sync = Collections.synchronizedList(\n    new ArrayList<>()\n);\n\n// ✅ Best for concurrent reads:\nList<String> cow = new CopyOnWriteArrayList<>();`,
+    tips: [
+      '⚠️ Legacy class — exists since Java 1.0',
+      'Grows by 100% (doubles), ArrayList grows by 50%',
+      'Synchronized ≠ thread-safe for compound operations',
+      'Interview: "Vector vs ArrayList?" → Both array-backed, Vector synchronized but obsolete',
+      'Use CopyOnWriteArrayList for concurrent read-heavy scenarios'
+    ]
+  },
+
+  // ─── Set Implementations ───
+  {
+    id: 'HashSet', type: 'class', category: 'set',
+    pos: [-4, -3, -12],
+    parent: 'Set',
+    description: 'Backed by a HashMap internally. O(1) add/remove/contains. No ordering guarantee. Allows one null element. Best general-purpose Set.',
+    implements: 'implements Set, Cloneable, Serializable',
+    complexity: { add: 'O(1)', remove: 'O(1)', contains: 'O(1)', iterate: 'O(n + capacity)' },
+    methods: ['add()', 'remove()', 'contains()', 'size()', 'isEmpty()', 'iterator()', 'clear()'],
+    code: `Set<String> set = new HashSet<>();\nset.add("Java");\nset.add("Python");\nset.add("Java");  // ignored — duplicate\n\nset.contains("Java"); // O(1) — true\nset.remove("Python"); // O(1)\n\n// Backed by HashMap:\n// add("X") → map.put("X", PRESENT)`,
+    tips: [
+      'Internally: HashSet = HashMap where values are a dummy PRESENT object',
+      'Initial capacity 16, load factor 0.75 — rehashes at 12 elements',
+      'MUST override equals() AND hashCode() for custom objects',
+      'Interview: "How does HashSet detect duplicates?" → hashCode() → bucket → equals()',
+      'Iteration order is unpredictable — don\'t rely on it'
+    ]
+  },
+  {
+    id: 'TreeSet', type: 'class', category: 'set',
+    pos: [3, -3, -14],
+    parent: 'Set',
+    description: 'Red-black tree implementation. Elements are SORTED (natural ordering or Comparator). O(log n) operations. Implements NavigableSet for range queries.',
+    implements: 'implements NavigableSet, SortedSet, Cloneable, Serializable',
+    complexity: { add: 'O(log n)', remove: 'O(log n)', contains: 'O(log n)', first: 'O(log n)', last: 'O(log n)' },
+    methods: ['first()', 'last()', 'lower()', 'higher()', 'floor()', 'ceiling()', 'headSet()', 'tailSet()', 'subSet()', 'descendingSet()'],
+    code: `TreeSet<Integer> ts = new TreeSet<>();\nts.add(30); ts.add(10); ts.add(20);\n\nSystem.out.println(ts);      // [10, 20, 30] sorted!\nts.first();                  // 10\nts.last();                   // 30\nts.lower(20);                // 10 (strictly less)\nts.ceiling(15);              // 20 (>= 15)\n\n// Range view\nts.subSet(10, true, 30, false); // [10, 20]`,
+    tips: [
+      'Backed by TreeMap (just like HashSet is backed by HashMap)',
+      'Elements must be Comparable OR provide a Comparator',
+      'Does NOT allow null (throws NullPointerException)',
+      'Interview: "Sorted collection with no duplicates?" → TreeSet',
+      'NavigableSet methods (floor, ceiling, lower, higher) are interview favorites'
+    ]
+  },
+  {
+    id: 'LinkedHashSet', type: 'class', category: 'set',
+    pos: [-1, -3, -16],
+    parent: 'Set',
+    description: 'Hash table + doubly-linked list. Maintains INSERTION ORDER while providing O(1) operations. Slightly slower than HashSet due to linked list overhead.',
+    implements: 'implements Set, Cloneable, Serializable',
+    complexity: { add: 'O(1)', remove: 'O(1)', contains: 'O(1)', iterate: 'O(n)' },
+    methods: ['add()', 'remove()', 'contains()', 'iterator()', 'size()', 'clear()'],
+    code: `Set<String> lhs = new LinkedHashSet<>();\nlhs.add("C");\nlhs.add("A");\nlhs.add("B");\n\n// Preserves insertion order!\nfor (String s : lhs) {\n  System.out.print(s + " "); // C A B\n}\n\n// Compare with HashSet — order unpredictable`,
+    tips: [
+      'Iteration order = insertion order (guaranteed)',
+      'Slightly more memory than HashSet (linked list pointers)',
+      'iterate is O(n) only — better than HashSet O(n + capacity)',
+      'Interview: "HashSet vs LinkedHashSet?" → Order guarantee',
+      'Good when you need uniqueness + predictable iteration'
+    ]
+  },
+
+  // ─── Map Implementations ───
+  {
+    id: 'HashMap', type: 'class', category: 'map',
+    pos: [-6, -3, 12],
+    parent: 'Map',
+    description: 'Hash table implementation. O(1) average operations. Allows one null key and multiple null values. Since Java 8: buckets convert from linked list to red-black tree at 8 entries (treeification).',
+    implements: 'implements Map, Cloneable, Serializable',
+    complexity: { 'put': 'O(1) avg', 'get': 'O(1) avg', 'remove': 'O(1) avg', 'containsKey': 'O(1) avg', 'worst case': 'O(log n)*' },
+    methods: ['put()', 'get()', 'remove()', 'containsKey()', 'containsValue()', 'getOrDefault()', 'putIfAbsent()', 'compute()', 'merge()', 'forEach()'],
+    code: `HashMap<String, Integer> map = new HashMap<>(16, 0.75f);\nmap.put("Java", 1995);\nmap.put("Python", 1991);\nmap.put(null, 0);  // null key allowed!\n\nmap.get("Java");              // 1995\nmap.getOrDefault("Go", -1);   // -1\n\n// Java 8+ power methods\nmap.computeIfAbsent("Rust", k -> 2015);\nmap.merge("Java", 1, Integer::sum);`,
+    tips: [
+      'Default: capacity=16, loadFactor=0.75, rehash at 12 entries',
+      '*Java 8+: bucket linked list → red-black tree when ≥8 entries (TREEIFY_THRESHOLD)',
+      'hashCode() quality directly affects performance',
+      'Interview FAVORITE: "How HashMap works internally?" — know bucket array, hash collision, treeification',
+      'NOT thread-safe — use ConcurrentHashMap for concurrency'
+    ]
+  },
+  {
+    id: 'TreeMap', type: 'class', category: 'map',
+    pos: [3, -3, 14],
+    parent: 'Map',
+    description: 'Red-black tree implementation. Keys are SORTED. O(log n) operations. Implements NavigableMap for range queries. Does not allow null keys.',
+    implements: 'implements NavigableMap, SortedMap, Cloneable, Serializable',
+    complexity: { put: 'O(log n)', get: 'O(log n)', remove: 'O(log n)', containsKey: 'O(log n)' },
+    methods: ['firstKey()', 'lastKey()', 'lowerKey()', 'higherKey()', 'floorEntry()', 'ceilingEntry()', 'headMap()', 'tailMap()', 'subMap()', 'descendingMap()'],
+    code: `TreeMap<String, Integer> tm = new TreeMap<>();\ntm.put("Banana", 2);\ntm.put("Apple", 5);\ntm.put("Cherry", 1);\n\ntm.firstKey();     // "Apple" (sorted!)\ntm.lastKey();      // "Cherry"\ntm.lowerKey("B");  // "Apple"\n\n// Range query\ntm.subMap("A", "C"); // {Apple=5, Banana=2}`,
+    tips: [
+      'Keys must be Comparable or provide a Comparator',
+      'Does NOT allow null keys (throws NPE)',
+      'Interview: "Sorted map?" → TreeMap. "Fast map?" → HashMap',
+      'NavigableMap methods are powerful for range operations',
+      'Great for implementing autocomplete or prefix-based lookups'
+    ]
+  },
+  {
+    id: 'LinkedHashMap', type: 'class', category: 'map',
+    pos: [-2, -3, 16],
+    parent: 'Map',
+    description: 'Hash table + doubly-linked list preserving INSERTION ORDER (or access order). O(1) operations. Perfect for implementing LRU (Least Recently Used) cache.',
+    implements: 'implements Map, Cloneable, Serializable',
+    complexity: { put: 'O(1)', get: 'O(1)', remove: 'O(1)', containsKey: 'O(1)' },
+    methods: ['put()', 'get()', 'remove()', 'containsKey()', 'removeEldestEntry()', 'keySet()', 'entrySet()'],
+    code: `// Insertion-order (default)\nLinkedHashMap<String, Integer> m = new LinkedHashMap<>();\nm.put("C", 3); m.put("A", 1); m.put("B", 2);\nm.keySet(); // [C, A, B] — insertion order\n\n// LRU Cache (access-order)\nLinkedHashMap<String, Integer> lru = new LinkedHashMap<>(16, 0.75f, true) {\n  @Override\n  protected boolean removeEldestEntry(Map.Entry eldest) {\n    return size() > 100; // max 100 entries\n  }\n};`,
+    tips: [
+      'Constructor 3rd param (accessOrder=true) enables LRU behavior',
+      'Override removeEldestEntry() for auto-eviction',
+      'Interview CLASSIC: "Implement an LRU cache" → LinkedHashMap with accessOrder',
+      'Slightly slower than HashMap due to linked list maintenance',
+      'Iteration is O(n) only — better than HashMap\'s O(n + capacity)'
+    ]
+  },
+  {
+    id: 'Hashtable', type: 'class', category: 'legacy',
+    pos: [6, -3, 10],
+    parent: 'Map',
+    description: 'Legacy synchronized hash table. Thread-safe but slow. Does NOT allow null keys or null values. Replaced by ConcurrentHashMap in modern code.',
+    implements: 'implements Map, Cloneable, Serializable',
+    complexity: { put: 'O(1)', get: 'O(1)', remove: 'O(1)', containsKey: 'O(1)' },
+    methods: ['put()', 'get()', 'remove()', 'containsKey()', 'contains()', 'keys()', 'elements()'],
+    code: `// ❌ Don't use Hashtable in new code!\nHashtable<String, Integer> ht = new Hashtable<>();\nht.put("Java", 1995);\n// ht.put(null, 0); // ❌ NullPointerException!\n\n// ✅ Modern alternatives:\nMap<String, Integer> sync = Collections.synchronizedMap(\n    new HashMap<>()\n);\n\n// ✅ Best concurrent map:\nConcurrentHashMap<String, Integer> chm = new ConcurrentHashMap<>();`,
+    tips: [
+      '⚠️ Legacy since Java 1.0 — do NOT use in new code',
+      'Synchronized on EVERY method call — very slow',
+      'Does NOT allow null keys or values (unlike HashMap)',
+      'Interview: "HashMap vs Hashtable?" — synchronization, null handling, legacy',
+      'Use ConcurrentHashMap for concurrent access (segment-based locking)'
+    ]
+  },
+
+  // ─── Queue Implementations ───
+  {
+    id: 'PriorityQueue', type: 'class', category: 'queue',
+    pos: [12, -3, -6],
+    parent: 'Queue',
+    description: 'Min-heap based priority queue. Elements are dequeued in natural order (or Comparator order), NOT FIFO. Smallest element is always at the head.',
+    implements: 'implements Queue, Serializable',
+    complexity: { 'offer': 'O(log n)', 'poll': 'O(log n)', 'peek': 'O(1)', 'remove(obj)': 'O(n)', 'contains': 'O(n)' },
+    methods: ['offer()', 'poll()', 'peek()', 'add()', 'remove()', 'comparator()', 'toArray()'],
+    code: `// Min-heap (default)\nPriorityQueue<Integer> pq = new PriorityQueue<>();\npq.offer(30); pq.offer(10); pq.offer(20);\npq.peek();  // 10 (minimum)\npq.poll();  // 10, then 20, then 30\n\n// Max-heap\nPriorityQueue<Integer> maxPQ = new PriorityQueue<>(\n    Comparator.reverseOrder()\n);\nmaxPQ.offer(30); maxPQ.offer(10);\nmaxPQ.peek();  // 30 (maximum)`,
+    tips: [
+      'NOT sorted — only guarantees minimum at head (heap property)',
+      'Iterator does NOT return elements in priority order',
+      'Default is min-heap; use Comparator.reverseOrder() for max-heap',
+      'Interview: "Top K elements?" → PriorityQueue (min-heap of size K)',
+      'Does NOT allow null elements'
+    ]
+  },
+  {
+    id: 'ArrayDeque', type: 'class', category: 'queue',
+    pos: [16, -3, 2],
+    parent: 'Deque',
+    description: 'Resizable-array implementation of Deque. Faster than LinkedList as queue AND faster than Stack as stack. No capacity restrictions. The go-to for stacks and queues.',
+    implements: 'implements Deque, Cloneable, Serializable',
+    complexity: { 'offerFirst': 'O(1)*', 'offerLast': 'O(1)*', 'pollFirst': 'O(1)', 'pollLast': 'O(1)', 'peekFirst': 'O(1)', 'peekLast': 'O(1)' },
+    methods: ['offerFirst()', 'offerLast()', 'pollFirst()', 'pollLast()', 'peekFirst()', 'peekLast()', 'push()', 'pop()', 'size()'],
+    code: `// As Stack (LIFO) — preferred over Stack class\nDeque<String> stack = new ArrayDeque<>();\nstack.push("A");\nstack.push("B");\nstack.pop();   // "B"\n\n// As Queue (FIFO) — preferred over LinkedList\nDeque<String> queue = new ArrayDeque<>();\nqueue.offer("First");\nqueue.offer("Second");\nqueue.poll();  // "First"`,
+    tips: [
+      '🏆 Preferred over both Stack AND LinkedList for stack/queue use',
+      'Backed by circular resizable array — very cache-friendly',
+      '*Amortized O(1) — occasional array copy when resizing',
+      'Does NOT allow null elements',
+      'Interview: "Best stack implementation?" → ArrayDeque, not Stack'
+    ]
+  },
+  {
+    id: 'Stack', type: 'class', category: 'legacy',
+    pos: [18, -3, 6],
+    parent: 'List',
+    parentAlso: 'Vector',
+    description: 'Legacy LIFO stack. Extends Vector (synchronized). AVOID in new code — use ArrayDeque instead. Only exists for backward compatibility.',
+    implements: 'extends Vector<E>',
+    complexity: { 'push': 'O(1)*', 'pop': 'O(1)', 'peek': 'O(1)', 'search': 'O(n)', 'empty': 'O(1)' },
+    methods: ['push()', 'pop()', 'peek()', 'empty()', 'search()'],
+    code: `// ❌ Don't use Stack in new code!\nStack<String> stack = new Stack<>();\nstack.push("old");\nstack.pop();\n\n// ✅ Modern replacement:\nDeque<String> modern = new ArrayDeque<>();\nmodern.push("fast");\nmodern.pop();\n\n// ArrayDeque is 3-5x faster than Stack!`,
+    tips: [
+      '⚠️ Legacy class — extends Vector (synchronized, slow)',
+      'Allows random access via inherited Vector methods (breaks stack contract)',
+      'Interview: "Why not use Stack?" → Extends Vector, synchronized overhead, use ArrayDeque',
+      'Stack.search() returns 1-based position from top (weird API)',
+      'ArrayDeque is 3-5x faster for stack operations'
+    ]
+  },
+];
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  THREE.JS SETUP                                             ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x050508);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050508, 0.012);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 8, 30);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 8;
+controls.maxDistance = 60;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.target.set(0, 0, 0);
+
+// ─── Lights ───
+const ambient = new THREE.AmbientLight(0x404060, 0.5);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.4);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
+const pointLight1 = new THREE.PointLight(0x8b5cf6, 1.5, 50);
+pointLight1.position.set(-10, 10, -10);
+scene.add(pointLight1);
+
+const pointLight2 = new THREE.PointLight(0x06b6d4, 1.5, 50);
+pointLight2.position.set(10, 10, 10);
+scene.add(pointLight2);
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  PARTICLES                                                  ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const particleCount = 800;
+const particleGeom = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(particleCount * 3);
+const particleSpeeds = new Float32Array(particleCount);
+
+for (let i = 0; i < particleCount; i++) {
+  particlePositions[i * 3]     = (Math.random() - 0.5) * 80;
+  particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 60;
+  particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 80;
+  particleSpeeds[i] = 0.005 + Math.random() * 0.015;
+}
+particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+const particleMat = new THREE.PointsMaterial({
+  size: 0.08,
+  color: 0x8b5cf6,
+  transparent: true,
+  opacity: 0.4,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+const particles = new THREE.Points(particleGeom, particleMat);
+scene.add(particles);
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  GRID FLOOR                                                 ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const gridHelper = new THREE.GridHelper(60, 30, 0x1a1a2e, 0x0d0d1a);
+gridHelper.position.y = -8;
+gridHelper.material.transparent = true;
+gridHelper.material.opacity = 0.3;
+scene.add(gridHelper);
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  NODE CREATION                                              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const nodeMeshes = [];
+const nodeMap = {};
+const edgeLines = [];
+const glowMeshes = [];
+
+// Label sprites
+function createLabel(text, color) {
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  const fontSize = 42;
+  ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+  const metrics = ctx.measureText(text);
+  const w = metrics.width + 24;
+  const h = fontSize + 16;
+  c.width = w * 2; c.height = h * 2;
+  ctx.scale(2, 2);
+  ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+  ctx.fillStyle = '#' + new THREE.Color(color).getHexString();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, w / 2, h / 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(w / 50, h / 50, 1);
+  return sprite;
+}
+
+collections.forEach(col => {
+  const color = COLORS[col.category];
+  const isInterface = col.type === 'interface';
+
+  // Geometry
+  let geom;
+  if (isInterface) {
+    geom = new THREE.IcosahedronGeometry(1.1, 1);
+  } else {
+    geom = new THREE.BoxGeometry(1.6, 1.6, 1.6, 2, 2, 2);
+    // Round the box edges
+    const posAttr = geom.attributes.position;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < posAttr.count; i++) {
+      v.fromBufferAttribute(posAttr, i);
+      v.normalize().multiplyScalar(1.05);
+      posAttr.setXYZ(i, v.x, v.y, v.z);
+    }
+  }
+
+  // Material
+  const mat = new THREE.MeshPhysicalMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 0.3,
+    roughness: 0.2,
+    metalness: 0.6,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.1,
+    transparent: true,
+    opacity: 0.85,
+  });
+
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.set(...col.pos);
+  mesh.userData = col;
+  scene.add(mesh);
+  nodeMeshes.push(mesh);
+  nodeMap[col.id] = mesh;
+
+  // Glow sphere
+  const glowGeom = new THREE.SphereGeometry(isInterface ? 1.6 : 1.5, 16, 16);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.08,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const glow = new THREE.Mesh(glowGeom, glowMat);
+  mesh.add(glow);
+  glowMeshes.push(glow);
+
+  // Label
+  const label = createLabel(col.id, color);
+  label.position.set(0, isInterface ? 1.8 : 1.7, 0);
+  mesh.add(label);
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  EDGES (hierarchy connections)                              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+function createEdge(fromId, toId) {
+  const from = nodeMap[fromId];
+  const to = nodeMap[toId];
+  if (!from || !to) return;
+
+  const pts = [from.position.clone(), to.position.clone()];
+  const geom = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({
+    color: 0x444466,
+    transparent: true,
+    opacity: 0.35,
+    blending: THREE.AdditiveBlending,
+  });
+  const line = new THREE.Line(geom, mat);
+  line.userData = { fromId, toId };
+  scene.add(line);
+  edgeLines.push(line);
+}
+
+collections.forEach(col => {
+  if (col.parent) createEdge(col.parent, col.id);
+  if (col.parentAlso) createEdge(col.parentAlso, col.id);
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  RAYCASTING & INTERACTION                                   ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+const infoPanel = document.getElementById('infoPanel');
+const infoBody = document.getElementById('infoBody');
+let hoveredNode = null;
+let selectedNode = null;
+
+canvas.addEventListener('mousemove', e => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  tooltip.style.left = (e.clientX + 14) + 'px';
+  tooltip.style.top = (e.clientY - 14) + 'px';
+});
+
+canvas.addEventListener('click', e => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes);
+  if (hits.length > 0) {
+    const col = hits[0].object.userData;
+    openInfoPanel(col, hits[0].object);
+  }
+});
+
+// Touch support
+let touchStartTime = 0;
+let touchMoved = false;
+canvas.addEventListener('touchstart', e => {
+  touchStartTime = Date.now();
+  touchMoved = false;
+}, { passive: true });
+canvas.addEventListener('touchmove', () => { touchMoved = true; }, { passive: true });
+canvas.addEventListener('touchend', e => {
+  if (touchMoved || Date.now() - touchStartTime > 300) return;
+  const t = e.changedTouches[0];
+  mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes);
+  if (hits.length > 0) {
+    openInfoPanel(hits[0].object.userData, hits[0].object);
+  }
+}, { passive: true });
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INFO PANEL RENDERING                                       ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+function openInfoPanel(col, mesh) {
+  selectedNode = mesh;
+  const color = '#' + new THREE.Color(COLORS[col.category]).getHexString();
+
+  // Highlight edges
+  edgeLines.forEach(line => {
+    const { fromId, toId } = line.userData;
+    if (fromId === col.id || toId === col.id) {
+      line.material.color.set(COLORS[col.category]);
+      line.material.opacity = 0.8;
+    } else {
+      line.material.color.set(0x444466);
+      line.material.opacity = 0.15;
+    }
+  });
+
+  // Build complexity table
+  let complexityHTML = '';
+  const cEntries = Object.entries(col.complexity);
+  cEntries.forEach(([op, val]) => {
+    complexityHTML += `<div class="complexity-item"><span class="op">${op}</span><span class="big-o" style="color:${color}">${val}</span></div>`;
+  });
+
+  // Build methods
+  let methodsHTML = col.methods.map(m => `<span class="method-tag">${m}</span>`).join('');
+
+  // Build tips
+  let tipsHTML = col.tips.map(t => `<li>${t}</li>`).join('');
+
+  // Syntax highlight code
+  let code = col.code
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(\/\/.+)/g, '<span class="cmt">$1</span>')
+    .replace(/\b(new|return|for|if|var|extends|implements|class|interface|protected|public|boolean|void|static|final|true|false|null|throws|try|catch)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(String|Integer|List|Set|Map|Queue|Deque|ArrayList|LinkedList|Vector|HashSet|TreeSet|LinkedHashSet|HashMap|TreeMap|LinkedHashMap|Hashtable|PriorityQueue|ArrayDeque|Stack|Collections|Comparator|ConcurrentHashMap|CopyOnWriteArrayList|Override|NavigableSet|SortedSet|NavigableMap|SortedMap|Collection|Object)\b/g, '<span class="type">$1</span>')
+    .replace(/"([^"]*)"/g, '<span class="str">"$1"</span>')
+    .replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+
+  const typeEmoji = col.type === 'interface' ? '🔷' : '🔶';
+  const implLine = col.implements ? `<div class="info-implements"><code>${col.implements}</code></div>` : '';
+
+  infoBody.innerHTML = `
+    <div class="info-header">
+      <div class="info-icon-wrap" style="background:${color}20;border-color:${color}30">
+        <span>${typeEmoji}</span>
+        <div style="position:absolute;inset:0;background:${color};opacity:0.08;border-radius:inherit"></div>
+      </div>
+      <div class="info-title" style="color:${color}">${col.id}</div>
+      <div class="info-category">${col.type} · ${col.category === 'legacy' ? '⚠️ Legacy' : col.category}</div>
+      ${implLine}
+    </div>
+    <p class="info-desc">${col.description}</p>
+
+    <div class="info-section">
+      <h4>⏱️ Time Complexity</h4>
+      <div class="complexity-grid">${complexityHTML}</div>
+    </div>
+
+    <div class="info-section">
+      <h4>🔧 Key Methods</h4>
+      <div class="methods-list">${methodsHTML}</div>
+    </div>
+
+    <div class="info-section">
+      <h4>💻 Code Example</h4>
+      <div class="code-block">${code}</div>
+    </div>
+
+    <div class="info-section">
+      <h4>💡 Pro Tips & Interview Notes</h4>
+      <ul class="tips-list">${tipsHTML}</ul>
+    </div>
+  `;
+
+  infoPanel.classList.add('open');
+  infoPanel.scrollTop = 0;
+}
+
+function closeInfoPanel() {
+  infoPanel.classList.remove('open');
+  selectedNode = null;
+  edgeLines.forEach(line => {
+    line.material.color.set(0x444466);
+    line.material.opacity = 0.35;
+  });
+}
+
+document.getElementById('infoClose').addEventListener('click', closeInfoPanel);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeInfoPanel();
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  SEARCH                                                     ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  nodeMeshes.forEach(mesh => {
+    const col = mesh.userData;
+    const match = !q || col.id.toLowerCase().includes(q) || col.category.includes(q) || col.type.includes(q);
+    mesh.visible = match;
+    if (!match && selectedNode === mesh) closeInfoPanel();
+  });
+  edgeLines.forEach(line => {
+    const { fromId, toId } = line.userData;
+    line.visible = nodeMap[fromId].visible && nodeMap[toId].visible;
+  });
+});
+
+// Focus search with /
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  UI CONTROLS                                                ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+document.getElementById('legendToggle').addEventListener('click', () => {
+  document.getElementById('legendPanel').classList.toggle('visible');
+});
+
+document.getElementById('resetCamera').addEventListener('click', () => {
+  camera.position.set(0, 8, 30);
+  controls.target.set(0, 0, 0);
+  controls.update();
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  ANIMATION LOOP                                             ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const dt = clock.getDelta();
+
+  controls.update();
+
+  // Floating animation for nodes
+  nodeMeshes.forEach((mesh, i) => {
+    const base = mesh.userData.pos;
+    mesh.position.y = base[1] + Math.sin(t * 0.6 + i * 0.7) * 0.35;
+    mesh.rotation.y = t * 0.15 + i * 0.5;
+    mesh.rotation.x = Math.sin(t * 0.3 + i) * 0.1;
+  });
+
+  // Glow pulsing
+  glowMeshes.forEach((glow, i) => {
+    glow.material.opacity = 0.06 + Math.sin(t * 1.5 + i * 0.8) * 0.04;
+    const s = 1.0 + Math.sin(t * 1.2 + i) * 0.1;
+    glow.scale.set(s, s, s);
+  });
+
+  // Particles drift
+  const posArr = particles.geometry.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    posArr[i * 3 + 1] += particleSpeeds[i];
+    if (posArr[i * 3 + 1] > 30) posArr[i * 3 + 1] = -30;
+  }
+  particles.geometry.attributes.position.needsUpdate = true;
+  particles.rotation.y = t * 0.02;
+
+  // Edge animation (update positions for floating nodes)
+  edgeLines.forEach(line => {
+    const from = nodeMap[line.userData.fromId];
+    const to = nodeMap[line.userData.toId];
+    const pts = line.geometry.attributes.position;
+    pts.setXYZ(0, from.position.x, from.position.y, from.position.z);
+    pts.setXYZ(1, to.position.x, to.position.y, to.position.z);
+    pts.needsUpdate = true;
+  });
+
+  // Hover detection
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes.filter(m => m.visible));
+
+  if (hits.length > 0) {
+    const mesh = hits[0].object;
+    if (hoveredNode !== mesh) {
+      // Unhover previous
+      if (hoveredNode) {
+        hoveredNode.material.emissiveIntensity = 0.3;
+        hoveredNode.scale.set(1, 1, 1);
+      }
+      hoveredNode = mesh;
+      mesh.material.emissiveIntensity = 0.7;
+      mesh.scale.set(1.15, 1.15, 1.15);
+      canvas.style.cursor = 'pointer';
+
+      const col = mesh.userData;
+      tooltip.innerHTML = `${col.id}<span class="tt-type">${col.type} · ${col.category}</span>`;
+      tooltip.style.color = '#' + new THREE.Color(COLORS[col.category]).getHexString();
+      tooltip.classList.add('visible');
+    }
+  } else {
+    if (hoveredNode) {
+      hoveredNode.material.emissiveIntensity = 0.3;
+      hoveredNode.scale.set(1, 1, 1);
+      hoveredNode = null;
+      canvas.style.cursor = 'default';
+      tooltip.classList.remove('visible');
+    }
+  }
+
+  // Selected node glow boost
+  if (selectedNode) {
+    selectedNode.material.emissiveIntensity = 0.5 + Math.sin(t * 3) * 0.2;
+  }
+
+  // Point lights orbit
+  pointLight1.position.x = Math.sin(t * 0.3) * 15;
+  pointLight1.position.z = Math.cos(t * 0.3) * 15;
+  pointLight2.position.x = Math.cos(t * 0.2) * 15;
+  pointLight2.position.z = Math.sin(t * 0.2) * 15;
+
+  renderer.render(scene, camera);
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  RESIZE & INIT                                              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Hide loader
+setTimeout(() => {
+  document.getElementById('loader').classList.add('hidden');
+  setTimeout(() => {
+    document.getElementById('instructions').style.animation = 'pulse 3s ease infinite';
+  }, 500);
+}, 800);
+
+// Fade instructions
+setTimeout(() => {
+  const inst = document.getElementById('instructions');
+  inst.style.opacity = '0';
+  setTimeout(() => inst.remove(), 500);
+}, 12000);
+
+animate();
+</script>
+</body>
+</html>
