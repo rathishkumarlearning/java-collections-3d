@@ -410,6 +410,202 @@ html, body {
 }
 .search-bar input::placeholder { color: rgba(255,255,255,0.3); }
 
+/* ─── Infographic Gallery ─── */
+.infographic-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(5, 5, 8, 0.92);
+  backdrop-filter: blur(20px);
+  display: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.infographic-overlay.visible {
+  display: block;
+  animation: galleryFadeIn 0.4s ease;
+}
+@keyframes galleryFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.gallery-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: linear-gradient(to bottom, rgba(5,5,8,0.98) 60%, transparent);
+}
+.gallery-title {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gallery-title span { -webkit-text-fill-color: initial; }
+.gallery-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  color: var(--white);
+  font-size: 20px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gallery-close:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+.gallery-grid {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+.gallery-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  backdrop-filter: blur(12px);
+}
+.gallery-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+.gallery-card img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+.gallery-card:hover img {
+  transform: scale(1.02);
+}
+.gallery-card-body {
+  padding: 16px 18px;
+}
+.gallery-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+}
+.gallery-card-hint {
+  font-size: 11px;
+  opacity: 0.4;
+  margin-top: 4px;
+}
+
+/* Fullscreen Lightbox */
+.infographic-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: rgba(0, 0, 0, 0.95);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: zoom-out;
+}
+.infographic-lightbox.visible {
+  display: flex;
+}
+.infographic-lightbox img {
+  max-width: 95vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.6);
+}
+.lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: all 0.2s;
+}
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.5);
+  color: white;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 2;
+}
+.lightbox-nav:hover {
+  background: rgba(255,255,255,0.1);
+}
+.lightbox-nav.prev { left: 20px; }
+.lightbox-nav.next { right: 20px; }
+.lightbox-caption {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  text-align: center;
+  z-index: 2;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 20px;
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 640px) {
+  .gallery-grid { grid-template-columns: 1fr; padding: 0 16px 40px; }
+  .gallery-title { font-size: 18px; }
+  .lightbox-nav { width: 40px; height: 40px; font-size: 18px; }
+  .lightbox-nav.prev { left: 8px; }
+  .lightbox-nav.next { right: 8px; }
+}
+
 /* ─── Animations ─── */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slideIn {
@@ -445,6 +641,7 @@ html, body {
 <div class="header">
   <h1><span class="java-icon">☕</span> Java Collections 3D</h1>
   <div class="header-right">
+    <button class="legend-btn" id="infographicsToggle">📊 Infographics</button>
     <button class="legend-btn" id="legendToggle">🎨 Legend</button>
     <button class="reset-btn" id="resetCamera">🔄 Reset View</button>
   </div>
@@ -484,6 +681,133 @@ html, body {
 <div class="instructions" id="instructions">
   🖱️ Drag to orbit · Scroll to zoom · Click a node to explore · Search to find
 </div>
+
+<!-- Infographic Gallery Overlay -->
+<div class="infographic-overlay" id="infographicOverlay">
+  <div class="gallery-header">
+    <div class="gallery-title"><span>📊</span> Infographic Gallery</div>
+    <button class="gallery-close" id="galleryClose">✕</button>
+  </div>
+  <div class="gallery-grid">
+    <div class="gallery-card" onclick="openInfographicLightbox(0)">
+      <img src="images/framework-overview.jpg" alt="Collections Framework Overview" loading="lazy">
+      <div class="gallery-card-body">
+        <div class="gallery-card-title">Collections Framework Overview</div>
+        <div class="gallery-card-hint">Click to view full screen</div>
+      </div>
+    </div>
+    <div class="gallery-card" onclick="openInfographicLightbox(1)">
+      <img src="images/arraylist-vs-linkedlist.jpg" alt="ArrayList vs LinkedList" loading="lazy">
+      <div class="gallery-card-body">
+        <div class="gallery-card-title">ArrayList vs LinkedList</div>
+        <div class="gallery-card-hint">Click to view full screen</div>
+      </div>
+    </div>
+    <div class="gallery-card" onclick="openInfographicLightbox(2)">
+      <img src="images/hashmap-internals.jpg" alt="How HashMap Works" loading="lazy">
+      <div class="gallery-card-body">
+        <div class="gallery-card-title">How HashMap Works</div>
+        <div class="gallery-card-hint">Click to view full screen</div>
+      </div>
+    </div>
+    <div class="gallery-card" onclick="openInfographicLightbox(3)">
+      <img src="images/hashset-treeset-linkedhashset.jpg" alt="HashSet vs TreeSet vs LinkedHashSet" loading="lazy">
+      <div class="gallery-card-body">
+        <div class="gallery-card-title">HashSet vs TreeSet vs LinkedHashSet</div>
+        <div class="gallery-card-hint">Click to view full screen</div>
+      </div>
+    </div>
+    <div class="gallery-card" onclick="openInfographicLightbox(4)">
+      <img src="images/queue-stack-deque.jpg" alt="Queue vs Stack vs Deque" loading="lazy">
+      <div class="gallery-card-body">
+        <div class="gallery-card-title">Queue vs Stack vs Deque</div>
+        <div class="gallery-card-hint">Click to view full screen</div>
+      </div>
+    </div>
+    <div class="gallery-card" onclick="openInfographicLightbox(5)">
+      <img src="images/5-ways-to-iterate.jpg" alt="5 Ways to Iterate Collections" loading="lazy">
+      <div class="gallery-card-body">
+        <div class="gallery-card-title">5 Ways to Iterate Collections</div>
+        <div class="gallery-card-hint">Click to view full screen</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Infographic Lightbox -->
+<div class="infographic-lightbox" id="infographicLightbox">
+  <button class="lightbox-close" onclick="closeInfographicLightbox()">✕</button>
+  <button class="lightbox-nav prev" onclick="event.stopPropagation(); navigateInfographic(-1)">‹</button>
+  <button class="lightbox-nav next" onclick="event.stopPropagation(); navigateInfographic(1)">›</button>
+  <img id="lightboxImg" src="" alt="Infographic">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
+</div>
+
+<script>
+// Infographic Gallery Logic
+const infographicData = [
+  { src: 'images/framework-overview.jpg', title: 'Collections Framework Overview' },
+  { src: 'images/arraylist-vs-linkedlist.jpg', title: 'ArrayList vs LinkedList' },
+  { src: 'images/hashmap-internals.jpg', title: 'How HashMap Works' },
+  { src: 'images/hashset-treeset-linkedhashset.jpg', title: 'HashSet vs TreeSet vs LinkedHashSet' },
+  { src: 'images/queue-stack-deque.jpg', title: 'Queue vs Stack vs Deque' },
+  { src: 'images/5-ways-to-iterate.jpg', title: '5 Ways to Iterate Collections' },
+];
+let currentInfographic = 0;
+
+document.getElementById('infographicsToggle').addEventListener('click', () => {
+  document.getElementById('infographicOverlay').classList.add('visible');
+});
+
+document.getElementById('galleryClose').addEventListener('click', () => {
+  document.getElementById('infographicOverlay').classList.remove('visible');
+});
+
+function openInfographicLightbox(index) {
+  currentInfographic = index;
+  const data = infographicData[index];
+  document.getElementById('lightboxImg').src = data.src;
+  document.getElementById('lightboxCaption').textContent = data.title;
+  document.getElementById('infographicLightbox').classList.add('visible');
+}
+
+function closeInfographicLightbox() {
+  document.getElementById('infographicLightbox').classList.remove('visible');
+}
+
+function navigateInfographic(dir) {
+  currentInfographic = (currentInfographic + dir + infographicData.length) % infographicData.length;
+  const data = infographicData[currentInfographic];
+  document.getElementById('lightboxImg').src = data.src;
+  document.getElementById('lightboxCaption').textContent = data.title;
+}
+
+document.getElementById('infographicLightbox').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeInfographicLightbox();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('infographicLightbox').classList.contains('visible')) {
+    if (e.key === 'Escape') closeInfographicLightbox();
+    if (e.key === 'ArrowLeft') navigateInfographic(-1);
+    if (e.key === 'ArrowRight') navigateInfographic(1);
+  } else if (document.getElementById('infographicOverlay').classList.contains('visible')) {
+    if (e.key === 'Escape') document.getElementById('infographicOverlay').classList.remove('visible');
+  }
+});
+
+// Touch swipe support for lightbox
+let touchStartX = 0;
+document.getElementById('infographicLightbox').addEventListener('touchstart', (e) => {
+  touchStartX = e.changedTouches[0].clientX;
+}, { passive: true });
+document.getElementById('infographicLightbox').addEventListener('touchend', (e) => {
+  const diff = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(diff) > 50) {
+    navigateInfographic(diff > 0 ? -1 : 1);
+  }
+}, { passive: true });
+</script>
 
 <!-- Scripts -->
 <script type="importmap">
